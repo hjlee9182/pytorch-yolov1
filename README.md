@@ -22,6 +22,7 @@ Effciency has not been optimized. It may be faster... I don't know
 ### 1. Dependency
 - pytorch 1.7 ( I think it's working also below 1.7 but I didn't test yet )
 - opencv
+- visdom ( It is not necessary )
 
 ### 2. Prepare
 
