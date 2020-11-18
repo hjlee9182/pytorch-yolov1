@@ -54,4 +54,6 @@ If you want to calculate mAP you need to clone https://github.com/Cartucho/mAP
 
 ### 5. result
 
-Our map in coco 2017 val set is 28.65%
+Our map in coco 2017 val set is 28.65%.
+
+It is not highest score, so maybe you can get more higher score than me.
