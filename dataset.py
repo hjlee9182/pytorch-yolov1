@@ -61,13 +61,17 @@ class yoloDataset(data.Dataset):
 
     def __getitem__(self,idx):
         fname = self.fnames[idx]
+        if self.train:
+            self.root = ''
+        else:
+            self.root = ''
         img = cv2.imread(os.path.join(self.root+fname))
         boxes = self.boxes[idx].clone()
         labels = self.labels[idx].clone()
 
         if self.train:
             #img = self.random_bright(img)
-            img, boxes = self.random_flip(img, boxes)
+            #img, boxes = self.random_flip(img, boxes)
             img,boxes = self.randomScale(img,boxes)
             img = self.randomBlur(img)
             img = self.RandomBrightness(img)
@@ -107,7 +111,7 @@ class yoloDataset(data.Dataset):
         return 7x7x30
         '''
         grid_num = 14
-        target = torch.zeros((grid_num,grid_num,30))
+        target = torch.zeros((grid_num,grid_num,90))
         cell_size = 1./grid_num
         wh = boxes[:,2:]-boxes[:,:2]
         cxcy = (boxes[:,2:]+boxes[:,:2])/2
