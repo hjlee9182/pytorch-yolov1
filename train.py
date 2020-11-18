@@ -11,7 +11,7 @@ from resnet_yolo import resnet50, resnet18
 from yoloLoss import yoloLoss
 from dataset import yoloDataset
 
-from visualize import Visualizer
+#from visualize import Visualizer
 import numpy as np
 
 import warnings
