@@ -11,35 +11,91 @@ from resnet_yolo import resnet50
 import torchvision.transforms as transforms
 import cv2
 import numpy as np
+from glob import glob
+import sys
 
-VOC_CLASSES = (    # always index 0
-    'aeroplane', 'bicycle', 'bird', 'boat',
-    'bottle', 'bus', 'car', 'cat', 'chair',
-    'cow', 'diningtable', 'dog', 'horse',
-    'motorbike', 'person', 'pottedplant',
-'sheep', 'sofa', 'train', 'tvmonitor')
+VOC_CLASSES =[     # always index 0
+'person',
+    'bicycle',
+    'car',
+    'motorcycle',
+    'airplane',
+    'bus',
+    'train',
+    'truck',
+    'boat',
+    'traffic_light',
+    'fire_hydrant',
+    'stop_sign',
+    'parking_meter',
+    'bench',
+    'bird',
+    'cat',
+    'dog',
+    'horse',
+    'sheep',
+    'cow',
+    'elephant',
+    'bear',
+    'zebra',
+    'giraffe',
+    'backpack',
+    'umbrella',
+    'handbag',
+    'tie',
+    'suitcase',
+    'frisbee',
+    'skis',
+    'snowboard',
+    'sports_ball',
+    'kite',
+    'baseball_bat',
+    'baseball_glove',
+    'skateboard',
+    'surfboard',
+    'tennis_racket',
+    'bottle',
+    'wine_glass',
+    'cup',
+    'fork',
+    'knife',
+    'spoon',
+    'bowl',
+    'banana'
+    ,'apple'
+    ,'sandwich'
+    ,'orange'
+    ,'broccoli'
+,'carrot'
+,'hot_dog'
+,'pizza'
+,'donut'
+,'cake'
+,'chair'
+,'couch'
+,'potted_plant'
+,'bed'
+,'dining_table'
+,'toilet'
+,'tv'
+,'laptop'
+,'mouse'
+,'remote'
+,'keyboard'
+,'cell_phone'
+,'microwave'
+,'oven'
+,'toaster'
+,'sink'
+,'refrigerator'
+,'book'
+,'clock'
+,'vase'
+,'scissors'
+,'teddy_bear'
+,'hair_drier'
+,'toothbrush']
 
-Color = [[0, 0, 0],
-                    [128, 0, 0],
-                    [0, 128, 0],
-                    [128, 128, 0],
-                    [0, 0, 128],
-                    [128, 0, 128],
-                    [0, 128, 128],
-                    [128, 128, 128],
-                    [64, 0, 0],
-                    [192, 0, 0],
-                    [64, 128, 0],
-                    [192, 128, 0],
-                    [64, 0, 128],
-                    [192, 0, 128],
-                    [64, 128, 128],
-                    [192, 128, 128],
-                    [0, 64, 0],
-                    [128, 64, 0],
-                    [0, 192, 0],
-                    [128, 192, 0],
-                    [0, 64, 128]]
 
 def decoder(pred):
     '''
@@ -86,9 +142,29 @@ def decoder(pred):
     else:
         boxes = torch.cat(boxes,0) #(n,4)
         probs = torch.cat(probs,0) #(n,)
-        cls_indexs = torch.cat(cls_indexs,0) #(n,)
-    keep = nms(boxes,probs)
+        cls_indexs = torch.stack(cls_indexs,0) #(n,)
+    keep = nms2(boxes,probs)
     return boxes[keep],cls_indexs[keep],probs[keep]
+
+def batch_iou(boxes,box):
+    lr = np.maximum(
+            np.minimum(boxes[:,0]+0.5*boxes[:,2],box[0]+0.5*box[2])-np.maximum(boxes[:,0]-0.5*boxes[:,2],box[0]-0.5*box[2]),0)
+    tb = np.maximum(
+            np.minimum(boxes[:,1]+0.5*boxes[:,3],box[1]+0.5*box[3])-np.maximum(boxes[:,1]-0.5*boxes[:,3],box[1]-0.5*box[3]),0)
+    inter= lr*tb
+    union = boxes[:,2]*boxes[:,3] + box[2]*box[3] -inter
+    return inter/union
+
+def nms2(boxes,scores,threshold=0.5):
+    order = torch.from_numpy(scores.argsort().numpy()[::-1].copy())
+    keep = [True]*len(order)
+
+    for i in range(len(order)-1):
+        ovps = batch_iou(boxes[order[i+1:]],boxes[order[i]])
+        for j,ov in enumerate(ovps):
+            if ov > threshold:
+                keep[order[j+i+1]]=False
+    return keep
 
 def nms(bboxes,scores,threshold=0.5):
     '''
@@ -168,20 +244,21 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load('best.pth'))
     model.eval()
     model.cuda()
-    image_name = 'dog.jpg'
-    image = cv2.imread(image_name)
-    print('predicting...')
-    result = predict_gpu(model,image_name)
-    for left_up,right_bottom,class_name,_,prob in result:
-        color = Color[VOC_CLASSES.index(class_name)]
-        cv2.rectangle(image,left_up,right_bottom,color,2)
-        label = class_name+str(round(prob,2))
-        text_size, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
-        p1 = (left_up[0], left_up[1]- text_size[1])
-        cv2.rectangle(image, (p1[0] - 2//2, p1[1] - 2 - baseline), (p1[0] + text_size[0], p1[1] + text_size[1]), color, -1)
-        cv2.putText(image, label, (p1[0], p1[1] + baseline), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255), 1, 8)
-
-    cv2.imwrite('result.jpg',image)
+    val_list = glob('../../data/images/val2017/*.jpg')
+    num = 0
+    for image_name in val_list:
+        image = cv2.imread(image_name)
+        txt = image_name.split('/')[-1][:-4]+'.txt'
+        result = predict_gpu(model,image_name)
+        for left_up,right_bottom,class_name,_,prob in result:
+            if prob<0.5:
+                continue
+            label = class_name+str(round(prob,2))
+            f = open('../mAP/input/detection-results/'+txt,'a')
+            f.write(f'{class_name} {str(prob)} {str(left_up[0])} {str(left_up[1])} {str(right_bottom[0])} {str(right_bottom[1])}\n')
+            f.close()
+        print(num)
+        num+=1
 
 
 
